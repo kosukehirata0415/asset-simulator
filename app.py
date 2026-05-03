@@ -7,7 +7,7 @@ import datetime
 # ページ全体の設定
 st.set_page_config(page_title="資産推移予測シミュレーター", layout="wide")
 
-# ★デザインの微調整（ライト/ダークモード完全対応）
+# ★デザインの微調整（アイコンの統一感とUIの洗練）
 st.markdown("""
 <style>
     .stApp {
@@ -26,14 +26,16 @@ st.markdown("""
         margin-top: 2.5rem !important;
         margin-bottom: 1.2rem !important;
     }
+    /* メトリクスカードのデザイン */
     [data-testid="stMetric"] {
-        border-radius: 8px;
+        border-radius: 12px;
         padding: 15px !important;
-        border: 1px solid rgba(128, 128, 128, 0.2);
+        border: 1px solid rgba(128, 128, 128, 0.15);
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
         border-left: 5px solid #14b8a6; 
         background-color: transparent; 
     }
+    /* 入力金額のプレビュー */
     .amount-preview {
         font-size: 0.85rem;
         color: #14b8a6;
@@ -85,7 +87,7 @@ if uploaded_files:
         col2.metric("評価損益", f"{int(total_profit):,} 円", f"{profit_ratio:.1f}%")
         col3.metric("投資元本", f"{int(total_principal):,} 円")
 
-        # ポートフォリオの円グラフ
+        # ③ 資産構成比率（円グラフ）
         st.write("### 📊 資産構成比率")
         pie_df = combined_df.groupby('ファンド名')['評価額(円)'].sum().reset_index()
         fig_pie = go.Figure(data=[go.Pie(
@@ -98,7 +100,7 @@ if uploaded_files:
         fig_pie.update_layout(margin=dict(l=20, r=20, t=30, b=20), legend=dict(orientation="h", y=-0.2, x=0.5, xanchor="center"), height=500, paper_bgcolor='rgba(0,0,0,0)')
         st.plotly_chart(fig_pie, use_container_width=True)
 
-        # 過去の実績利回り計算
+        # ④ 過去実績の分析
         st.write("### 🔍 過去実績の分析")
         col_calc1, col_calc2 = st.columns(2)
         start_date = col_calc1.date_input("運用開始日", datetime.date(2021, 1, 4))
@@ -115,14 +117,14 @@ if uploaded_files:
         else:
             past_cagr = 0.0
 
-        # 保有ファンド詳細
+        # ⑤ 保有ファンド詳細
         st.write("### 📑 保有ファンド詳細")
         display_df = combined_df[['ファンド名', '評価額(円)', '評価損益(円)', '評価損益率(％)']].copy()
         display_df['評価額(円)'] = display_df['評価額(円)'].apply(lambda x: f"{int(x):,}")
         display_df['評価損益(円)'] = display_df['評価損益(円)'].apply(lambda x: f"{int(x):,}")
         st.dataframe(display_df, hide_index=True, use_container_width=True)
 
-        # ③ 今後の積立設定
+        # ⑥ 今後の積立設定
         st.write("### ⚙️ 今後の積立設定")
         unique_funds = combined_df['ファンド名'].unique()
         total_monthly_investment = 0
@@ -133,11 +135,10 @@ if uploaded_files:
                 total_monthly_investment += amount
         st.success(f"**合計積立額: {int(total_monthly_investment):,} 円 / 月**")
 
-        # ★将来予測（期間変更スライダー付き）
+        # ⑦ 将来の資産予測
         st.write("### 🚀 将来の資産予測")
         
-        # 予測年数を変更できるスライダーを追加
-        forecast_years = st.slider("予測期間（年）を選択してください", min_value=1, max_value=40, value=20)
+        forecast_years = st.slider("予測期間（年）を選択", min_value=1, max_value=40, value=20)
         
         rates = {"5%": 0.05, "7%": 0.07, "市場平均(8%)": 0.08, f"過去実績({past_cagr*100:.1f}%)": past_cagr}
         yearly_inv = total_monthly_investment * 12
@@ -169,12 +170,12 @@ if uploaded_files:
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)',
         )
-        # ★レンジスライダーを有効化して範囲を絞れるようにする
+        # ★修正：不要なレンジスライダーを非表示にしました
         fig.update_xaxes(
             dtick=1, 
             showgrid=True, 
             gridcolor='rgba(128,128,128,0.2)',
-            rangeslider_visible=True # 下部に範囲選択バーを表示
+            rangeslider_visible=False # ここをFalseにすることで2個目のグラフのような枠を消去
         )
         fig.update_yaxes(showgrid=True, gridcolor='rgba(128,128,128,0.2)')
         
