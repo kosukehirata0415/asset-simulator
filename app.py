@@ -6,46 +6,34 @@ import plotly.graph_objects as go
 # ページ全体の設定
 st.set_page_config(page_title="資産推移予測シミュレーター", layout="wide")
 
-# ★洗練されたミニマル・デザインのCSS（ライト/ダーク両対応）
+# ★洗練されたミニマル・デザインのCSS
 st.markdown("""
 <style>
-    /* 全体の基本フォント */
     .stApp {
         font-family: 'Helvetica Neue', 'Hiragino Sans', 'Meiryo', sans-serif;
     }
-    
-    /* セクション見出しの洗練された装飾 */
     h3 {
         font-size: 1.4rem !important;
         font-weight: 600;
         padding-bottom: 0.5rem;
-        border-bottom: 2px solid rgba(20, 184, 166, 0.3); /* ティールグリーンのアンダーライン */
+        border-bottom: 2px solid rgba(20, 184, 166, 0.3);
         margin-top: 2rem !important;
         margin-bottom: 1rem !important;
     }
-
-    /* メトリクス（数字カード）のFintech風デザイン */
     [data-testid="stMetric"] {
         border-radius: 8px;
         padding: 15px !important;
-        /* 薄いグレーの枠線と影（ダークモードでも違和感なし） */
         border: 1px solid rgba(128, 128, 128, 0.2);
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-        /* 左側にティールグリーンのアクセントライン */
         border-left: 5px solid #14b8a6; 
         background-color: transparent; 
     }
-
-    /* スマホ画面での余白調整 */
     @media (max-width: 640px) {
         .main .block-container {
             padding: 2rem 1rem !important;
         }
         .stDataFrame {
             font-size: 0.85rem;
-        }
-        [data-testid="stMetric"] {
-            margin-bottom: 12px;
         }
     }
 </style>
@@ -84,6 +72,28 @@ if uploaded_files:
         col2.metric("評価損益", f"{int(total_profit):,} 円", f"{profit_ratio:.1f}%")
         col3.metric("投資元本", f"{int(total_principal):,} 円")
 
+        # ★追加：ポートフォリオの円グラフ
+        st.write("### 🍰 ポートフォリオ内訳")
+        # ファンドごとに評価額を合計
+        pie_df = combined_df.groupby('ファンド名')['評価額(円)'].sum().reset_index()
+        
+        fig_pie = go.Figure(data=[go.Pie(
+            labels=pie_df['ファンド名'], 
+            values=pie_df['評価額(円)'],
+            hole=.4, # モダンなドーナツチャート
+            marker=dict(colors=['#14b8a6', '#0ea5e9', '#6366f1', '#a855f7', '#ec4899', '#f59e0b']),
+            textinfo='percent+label',
+            insidetextorientation='radial'
+        )])
+        
+        fig_pie.update_layout(
+            margin=dict(l=20, r=20, t=30, b=20),
+            legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5),
+            height=500,
+            paper_bgcolor='rgba(0,0,0,0)',
+        )
+        st.plotly_chart(fig_pie, use_container_width=True)
+
         # ④ 過去の実績利回り計算
         st.write("### 📊 過去の実績から利回りを計算")
         invested_years = st.number_input("運用年数（目安）を入力", min_value=0.1, value=5.0, step=0.5)
@@ -96,7 +106,7 @@ if uploaded_files:
         st.info(f"💡 推定年利: **{past_cagr * 100:.2f} %**")
 
         # 保有ファンド一覧
-        st.write("### 💼 保有ファンド一覧")
+        st.write("### 💼 保有ファンド詳細")
         display_df = combined_df[['ファンド名', '評価額(円)', '評価損益(円)', '評価損益率(％)']].copy()
         display_df['評価額(円)'] = display_df['評価額(円)'].apply(lambda x: f"{int(x):,}")
         display_df['評価損益(円)'] = display_df['評価損益(円)'].apply(lambda x: f"{int(x):,}")
@@ -129,7 +139,6 @@ if uploaded_files:
         results = {'年': np.arange(0, years + 1)}
         
         fig = go.Figure()
-        # グラフの色もティール系のグラデーションに変更
         colors = ['#94a3b8', '#2dd4bf', '#0ea5e9', '#0f766e']
         
         for i, (label, rate) in enumerate(rates.items()):
@@ -152,11 +161,9 @@ if uploaded_files:
             yaxis_title="資産額",
             hovermode="x unified",
             height=450,
-            # 背景色を透明にしてライト/ダーク両方で美しく表示
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)',
         )
-        # グラフのグリッド線を薄く設定
         fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='rgba(128,128,128,0.2)')
         fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='rgba(128,128,128,0.2)')
         
