@@ -7,7 +7,7 @@ import datetime
 # ページ全体の設定
 st.set_page_config(page_title="資産推移予測シミュレーター", layout="wide")
 
-# ★デザインの微調整（アイコンの統一感とUIの洗練）
+# ★洗練されたミニマル・デザインのCSS
 st.markdown("""
 <style>
     .stApp {
@@ -26,7 +26,6 @@ st.markdown("""
         margin-top: 2.5rem !important;
         margin-bottom: 1.2rem !important;
     }
-    /* メトリクスカードのデザイン */
     [data-testid="stMetric"] {
         border-radius: 12px;
         padding: 15px !important;
@@ -35,7 +34,6 @@ st.markdown("""
         border-left: 5px solid #14b8a6; 
         background-color: transparent; 
     }
-    /* 入力金額のプレビュー */
     .amount-preview {
         font-size: 0.85rem;
         color: #14b8a6;
@@ -87,17 +85,27 @@ if uploaded_files:
         col2.metric("評価損益", f"{int(total_profit):,} 円", f"{profit_ratio:.1f}%")
         col3.metric("投資元本", f"{int(total_principal):,} 円")
 
-        # ③ 資産構成比率（円グラフ）
+        # ③ 資産構成比率（円グラフの修正）
         st.write("### 📊 資産構成比率")
         pie_df = combined_df.groupby('ファンド名')['評価額(円)'].sum().reset_index()
+        
         fig_pie = go.Figure(data=[go.Pie(
             labels=pie_df['ファンド名'], 
             values=pie_df['評価額(円)'],
             hole=.4,
             marker=dict(colors=['#14b8a6', '#0ea5e9', '#6366f1', '#a855f7', '#ec4899', '#f59e0b']),
-            textinfo='percent+label'
+            textinfo='percent+label',
+            # ★修正：文字を外側に出し、かつ水平に固定する設定
+            textposition='outside', 
+            insidetextorientation='horizontal' 
         )])
-        fig_pie.update_layout(margin=dict(l=20, r=20, t=30, b=20), legend=dict(orientation="h", y=-0.2, x=0.5, xanchor="center"), height=500, paper_bgcolor='rgba(0,0,0,0)')
+        
+        fig_pie.update_layout(
+            margin=dict(l=50, r=50, t=30, b=80), # 外側の文字が切れないよう余白を調整
+            legend=dict(orientation="h", y=-0.2, x=0.5, xanchor="center"), 
+            height=550, 
+            paper_bgcolor='rgba(0,0,0,0)'
+        )
         st.plotly_chart(fig_pie, use_container_width=True)
 
         # ④ 過去実績の分析
@@ -137,7 +145,6 @@ if uploaded_files:
 
         # ⑦ 将来の資産予測
         st.write("### 🚀 将来の資産予測")
-        
         forecast_years = st.slider("予測期間（年）を選択", min_value=1, max_value=40, value=20)
         
         rates = {"5%": 0.05, "7%": 0.07, "市場平均(8%)": 0.08, f"過去実績({past_cagr*100:.1f}%)": past_cagr}
@@ -170,13 +177,7 @@ if uploaded_files:
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)',
         )
-        # ★修正：不要なレンジスライダーを非表示にしました
-        fig.update_xaxes(
-            dtick=1, 
-            showgrid=True, 
-            gridcolor='rgba(128,128,128,0.2)',
-            rangeslider_visible=False # ここをFalseにすることで2個目のグラフのような枠を消去
-        )
+        fig.update_xaxes(dtick=1, showgrid=True, gridcolor='rgba(128,128,128,0.2)', rangeslider_visible=False)
         fig.update_yaxes(showgrid=True, gridcolor='rgba(128,128,128,0.2)')
         
         st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
