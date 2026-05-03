@@ -6,60 +6,68 @@ import plotly.graph_objects as go
 # ページ全体の設定
 st.set_page_config(page_title="資産推移予測シミュレーター", layout="wide")
 
-# ★スマホ最適化＆スタイリッシュなカスタムCSS
+# ★スマホ最適化＆ダークモード文字潰れ対策のCSS
 st.markdown("""
 <style>
     /* 全体の背景と基本フォント */
     .stApp {
-        background-color: #F8FAFC;
+        background-color: #F8FAFC !important;
         font-family: 'Hiragino Sans', 'Meiryo', sans-serif;
     }
     
-    /* タイトルのモバイル調整 */
+    /* ダークモード時でも見出しや文字が白くならないように強制 */
+    h1, h2, h3, p, label {
+        color: #1E293B !important;
+    }
+    
     h1 {
-        color: #1E293B;
         font-size: 1.8rem !important;
         text-align: center;
         padding-bottom: 1rem;
     }
     
-    /* セクション見出しの調整 */
     h3 {
-        color: #334155;
+        color: #334155 !important;
         font-size: 1.3rem !important;
         border-left: 5px solid #3B82F6;
         padding-left: 10px;
         margin-top: 2rem !important;
     }
 
-    /* メトリクス（数字）をカード風のデザインに */
+    /* メトリクス（数字カード）のデザインと枠のはみ出し対策 */
     [data-testid="stMetric"] {
-        background-color: #FFFFFF;
-        border-radius: 12px;
-        padding: 15px !important;
-        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-        border: 1px solid #E2E8F0;
+        background-color: #FFFFFF !important;
+        border-radius: 10px !important;
+        padding: 12px 10px !important; /* パディングを最適化 */
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
+        border: 1px solid #E2E8F0 !important;
+        box-sizing: border-box !important; /* 枠の崩れを防止 */
+        width: 100% !important;
+        overflow: hidden !important;
     }
 
-    /* スマホ画面（幅640px以下）での調整 */
+    /* メトリクスのラベル（「総資産額」などの文字） */
+    [data-testid="stMetricLabel"] * {
+        color: #475569 !important; /* 濃いグレーに強制（白潰れ防止） */
+        font-size: 0.85rem !important;
+        white-space: normal !important; /* 長い場合は折り返し */
+    }
+
+    /* メトリクスの数値（金額） */
+    [data-testid="stMetricValue"] * {
+        color: #0F172A !important; /* 濃い紺色に強制 */
+        font-size: 1.25rem !important; /* スマホではみ出ないように縮小 */
+        word-break: break-word !important; /* どうしても長い場合は折り返し */
+    }
+
+    /* スマホ画面での余白調整 */
     @media (max-width: 640px) {
-        .stMetric {
-            margin-bottom: 10px;
+        .main .block-container {
+            padding: 1.5rem 0.8rem !important;
         }
-        /* 表の文字を少し小さくして視認性アップ */
         .stDataFrame {
             font-size: 0.8rem;
         }
-        /* 全体のパディングを調整 */
-        .main .block-container {
-            padding: 1rem 0.5rem !important;
-        }
-    }
-
-    /* 入力フォームのラベル調整 */
-    .stNumberInput label {
-        font-weight: bold;
-        color: #475569;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -92,7 +100,6 @@ if uploaded_files:
         profit_ratio = (total_profit / total_principal * 100) if total_principal > 0 else 0
 
         st.write("### 💎 現在の資産状況")
-        # スマホでは自動的に縦に並ぶ
         col1, col2, col3 = st.columns(3)
         col1.metric("総資産額", f"{int(total_assets):,} 円")
         col2.metric("評価損益", f"{int(total_profit):,} 円", f"{profit_ratio:.1f}%")
@@ -158,7 +165,6 @@ if uploaded_files:
                 marker=dict(size=4)
             ))
 
-        # グラフのモバイル最適化
         fig.update_layout(
             margin=dict(l=10, r=10, t=30, b=10),
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
