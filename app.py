@@ -7,7 +7,7 @@ import datetime
 # ページ全体の設定
 st.set_page_config(page_title="資産推移予測シミュレーター", layout="wide")
 
-# ★デザインの調整（アイコンの統一と辛口アドバイザー用スタイル）
+# ★デザインの調整
 st.markdown("""
 <style>
     .stApp {
@@ -55,10 +55,9 @@ st.markdown("""
         margin-top: -15px;
         margin-bottom: 10px;
     }
-    /* 辛口アドバイザーの吹き出しスタイル */
-    .spicy-message {
-        border-left: 5px solid #ef4444 !important;
-        background-color: rgba(239, 68, 68, 0.05) !important;
+    .reach-metric [data-testid="stMetric"] {
+        border-left: 5px solid #f43f5e;
+        background-color: rgba(244, 63, 94, 0.05);
     }
     @media (max-width: 640px) {
         .main .block-container {
@@ -102,8 +101,8 @@ if uploaded_files:
         total_principal = total_assets - total_profit
         profit_ratio = (total_profit / total_principal * 100) if total_principal > 0 else 0
 
-        # --- タブの作成（アイコンを再統一） ---
-        tab1, tab2, tab3, tab4 = st.tabs(["💰 現在の資産", "📑 分析・詳細", "🚀 将来予測", "🌶️ 辛口アドバイザー"])
+        # --- タブの作成 ---
+        tab1, tab2, tab3, tab4 = st.tabs(["💰 現在の資産", "📑 分析・詳細", "🚀 将来予測", "🤖 AIアドバイザー"])
 
         # 【タブ1：現在の資産】
         with tab1:
@@ -195,41 +194,51 @@ if uploaded_files:
             fig.update_yaxes(showgrid=True, gridcolor='rgba(128,128,128,0.2)')
             st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
 
-        # 【タブ4：🌶️ 辛口アドバイザー】
+            st.write("#### 🚩 目標到達予定時期")
+            st.markdown('<div class="reach-metric">', unsafe_allow_html=True)
+            cols = st.columns(4)
+            for i, (label, year) in enumerate(reach_years.items()):
+                if year == "-":
+                    cols[i].metric(label, "到達せず")
+                else:
+                    cols[i].metric(label, f"{year} 年後")
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        # 【タブ4：🤖 AIアドバイザー】
         with tab4:
-            st.write("### 🌶️ 忖度なしのポートフォリオ診断")
+            st.write("### 🤖 ポートフォリオ診断アドバイス")
             
             # 分析用データ
             us_keywords = ['Ｓ＆Ｐ５００', '米国', 'S&P500']
+            global_keywords = ['オール・カントリー', '全世界']
             us_amount = combined_df[combined_df['ファンド名'].str.contains('|'.join(us_keywords), na=False)]['評価額(円)'].sum()
             us_ratio = (us_amount / total_assets) * 100 if total_assets > 0 else 0
             specific_amount = combined_df[~combined_df['口座区分'].str.contains('NISA|非課税', na=False)]['評価額(円)'].sum()
 
             with st.chat_message("assistant"):
-                st.write(f"資産 **{total_assets:,.0f}円** ですか。数字だけ見れば立派ですが、中身にはツッコミどころがありますね。")
+                st.write(f"現在の総資産 **{total_assets:,.0f}円** に基づく客観的な分析レポートです。素晴らしい資産形成のペースですが、より盤石にするためのポイントをまとめました。")
                 
-                # 1. 米国集中リスク
-                st.markdown("#### 🇺🇸 米国一本足打法の危うさ")
-                if us_ratio > 70:
-                    st.write(f"ポートフォリオの **{us_ratio:.1f}%** が米国株。これは分散投資ではなく、単なる「米国への一点賭け」です。")
-                    st.write("今は円安と米国高でホクホクでしょうが、もし「米国株安」と「猛烈な円高」が同時に来たら、あなたの資産は一瞬で溶けますよ。全世界株への分散を検討し、少しは『守り』を意識したらどうですか？")
+                # 1. 米国集中リスクと分散
+                st.markdown("#### 🇺🇸 資産の分散状況について")
+                if us_ratio > 60:
+                    st.write(f"現在、ポートフォリオの **約{us_ratio:.0f}%** が米国株（S&P500等）で構成されています。S&P500は世界最強のインデックスの一つであり、これまでの高いリターンの原動力となっています。")
+                    st.write("一方で、特定の国に資産が集中しているのは事実です。今後の積立で『オール・カントリー』の比率を高めるご予定は、将来的な米国経済の停滞や為替変動（極端な円高など）に対する**非常に賢明なリスクヘッジ**となります。")
                 else:
-                    st.write("分散は意識されているようですが、まだ米国株の動向に一喜一憂するレベルですね。")
+                    st.write("特定の国や地域に偏りすぎず、バランスの取れたアセットアロケーションが構築できています。")
 
-                # 2. 税金の無駄
-                st.markdown("#### 💸 特定口座という名の『納税ボランティア』")
-                if specific_amount > 1000000:
-                    st.write(f"特定口座に **{specific_amount:,.0f}円** も放置していますね。利益に対して約20%も税金を取られるのがそんなに嬉しいんですか？")
-                    st.write("新NISA枠が余っているなら、さっさと移し替えるべきです。複利の力だけでなく、税金のロスを減らすのが資産形成の鉄則ですよ。")
+                # 2. 税金と口座の適切な活用
+                st.markdown("#### 🏦 特定口座の取り扱いとNISA活用")
+                if specific_amount > 0:
+                    st.write(f"現在、特定口座に **約{specific_amount/10000:,.0f}万円** の資産があります。評価益がかなり大きいため、**これを無理に売却してNISAに移そうとすると、約20%の税金が引かれてしまい、複利の運用資金を減らしてしまうデメリット**があります。")
+                    st.write("そのため、特定口座の資産は無理に動かさず**『そのまま長期保有（ガチホ）』**するのがセオリーです。今後の新しい積立資金を、新NISA枠（年間最大360万円）に優先的に投入していく戦略を徹底してください。")
                 else:
-                    st.write("口座管理は及第点ですが、非課税枠を1円も無駄にしない執念を持ってください。")
+                    st.write("NISA枠を非常に効率的に活用できています。引き続き非課税の恩恵を最大限に活かしましょう。")
 
-                # 3. 慢心への警告
-                st.markdown("#### 📉 利回りへの勘違い")
-                if past_cagr > 0.10:
-                    st.write(f"年利 **{past_cagr*100:.1f}%** という数字を見て、自分に投資の才能があると思ってませんか？")
-                    st.write("それは単にここ数年の相場が異常に良かっただけです。今後の予測をこの利回りで計算してニヤけるのは勝手ですが、年利5%程度まで落ち込む覚悟がないなら、いつか相場から退場することになりますよ。")
+                # 3. メンタルと利回り
+                st.markdown("#### 📈 将来の利回りとリスク管理")
+                st.write(f"過去の推定年利が非常に高い水準ですが、これはご自身の『暴落時にも売らずに積み立てた握力』と、近年の『歴史的な株高・円安』の相乗効果によるものです。")
+                st.write("投資の世界では、いつか必ず厳しい調整局面（下落相場）が訪れます。将来予測は保守的な**年利5%〜7%**程度で見積もっておき、資産が半減しても生活に困らないよう、現金の確保（生活防衛資金）もしっかり行っておきましょう。")
 
                 st.markdown("---")
-                st.write("**⚠️ 総評**")
-                st.write("今のところは運良く勝てていますが、慢心は禁物です。資産額が増えるほど、一度の暴落で失う金額も桁違いになります。今のうちに、最悪のシナリオを想定した『現金比率』と『地域分散』を再考することをお勧めします。")
+                st.write("**💡 総評**")
+                st.write("王道のインデックスファンドを低コストで長期保有するという、投資の最適解をすでに実践されています。焦って方針を変える必要はありません。今のペースで淡々と積立を継続することが、目標達成への一番の近道です。")
