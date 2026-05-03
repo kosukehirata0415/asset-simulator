@@ -52,9 +52,18 @@ if uploaded_files:
         except:
             df = pd.read_csv(file, header=1, encoding='utf-8')
         
-        if '評価額(円)' in df.columns and '評価損益(円)' in df.columns:
+        if '評価額(円)' in df.columns and '評価損益(円)' in df.columns and 'ファンド名' in df.columns:
+            
+            # ★修正箇所：「該当データはありません」などの不要な行を除外する
+            df = df[df['ファンド名'].notna()]
+            df = df[~df['ファンド名'].astype(str).str.contains('該当データはありません')]
+
             df['評価額(円)'] = pd.to_numeric(df['評価額(円)'].astype(str).str.replace(',', ''), errors='coerce').fillna(0)
             df['評価損益(円)'] = pd.to_numeric(df['評価損益(円)'].astype(str).str.replace(',', ''), errors='coerce').fillna(0)
+            
+            # 評価額が0円のものもノイズになるため除外
+            df = df[df['評価額(円)'] > 0]
+            
             all_data.append(df)
 
     if all_data:
@@ -72,15 +81,14 @@ if uploaded_files:
         col2.metric("評価損益", f"{int(total_profit):,} 円", f"{profit_ratio:.1f}%")
         col3.metric("投資元本", f"{int(total_principal):,} 円")
 
-        # ★追加：ポートフォリオの円グラフ
+        # ポートフォリオの円グラフ
         st.write("### 🍰 ポートフォリオ内訳")
-        # ファンドごとに評価額を合計
         pie_df = combined_df.groupby('ファンド名')['評価額(円)'].sum().reset_index()
         
         fig_pie = go.Figure(data=[go.Pie(
             labels=pie_df['ファンド名'], 
             values=pie_df['評価額(円)'],
-            hole=.4, # モダンなドーナツチャート
+            hole=.4,
             marker=dict(colors=['#14b8a6', '#0ea5e9', '#6366f1', '#a855f7', '#ec4899', '#f59e0b']),
             textinfo='percent+label',
             insidetextorientation='radial'
