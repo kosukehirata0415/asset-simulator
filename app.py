@@ -3,6 +3,8 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 import datetime
+import zipfile
+import io
 
 # ページ全体の設定
 st.set_page_config(page_title="資産推移予測シミュレーター", layout="wide")
@@ -18,12 +20,10 @@ st.markdown("""
         text-align: center;
         margin-bottom: 1.5rem !important;
     }
-    /* タブのスタイル調整 */
     .stTabs [data-baseweb="tab"] {
         font-size: 0.95rem !important;
         font-weight: 600 !important;
     }
-    /* メトリクスカードのデザイン */
     [data-testid="stMetric"] {
         border-radius: 12px;
         padding: 15px !important;
@@ -32,7 +32,6 @@ st.markdown("""
         border-left: 5px solid #14b8a6; 
         background-color: transparent; 
     }
-    /* 金額とデルタを横並びにする */
     [data-testid="stMetric"] > div {
         display: flex !important;
         flex-direction: row !important;
@@ -69,28 +68,53 @@ st.markdown("""
 
 st.title("💹 資産推移シミュレーター")
 
-# ① CSVアップロード
-uploaded_files = st.file_uploader("CSVファイルをアップロード", type="csv", accept_multiple_files=True)
+# ★CSVデータ読み込み・整形処理を共通関数化
+def process_csv_data(file_content):
+    try:
+        # まずはShift-JISで読み込み
+        df = pd.read_csv(io.BytesIO(file_content), header=1, encoding='shift_jis')
+    except:
+        # エラーが出たらUTF-8でリトライ
+        df = pd.read_csv(io.BytesIO(file_content), header=1, encoding='utf-8')
+        
+    if '評価額(円)' in df.columns and '評価損益(円)' in df.columns and 'ファンド名' in df.columns:
+        df = df[df['ファンド名'].notna()]
+        df = df[~df['ファンド名'].astype(str).str.contains('該当データはありません')]
+        df['評価額(円)'] = pd.to_numeric(df['評価額(円)'].astype(str).str.replace(',', ''), errors='coerce').fillna(0)
+        df['評価損益(円)'] = pd.to_numeric(df['評価損益(円)'].astype(str).str.replace(',', ''), errors='coerce').fillna(0)
+        
+        if '口座区分' not in df.columns:
+            df['口座区分'] = '不明'
+            
+        df = df[df['評価額(円)'] > 0]
+        return df
+    return None
+
+# ① ファイルアップロード（CSVとZIPの両方に対応）
+uploaded_files = st.file_uploader("CSVまたはZIPファイルをアップロード（複数可）", type=["csv", "zip"], accept_multiple_files=True)
 
 if uploaded_files:
     all_data = []
+    
+    # ★ZIP展開とCSV読み込みの処理
     for file in uploaded_files:
-        try:
-            df = pd.read_csv(file, header=1, encoding='shift_jis')
-        except:
-            df = pd.read_csv(file, header=1, encoding='utf-8')
-        
-        if '評価額(円)' in df.columns and '評価損益(円)' in df.columns and 'ファンド名' in df.columns:
-            df = df[df['ファンド名'].notna()]
-            df = df[~df['ファンド名'].astype(str).str.contains('該当データはありません')]
-            df['評価額(円)'] = pd.to_numeric(df['評価額(円)'].astype(str).str.replace(',', ''), errors='coerce').fillna(0)
-            df['評価損益(円)'] = pd.to_numeric(df['評価損益(円)'].astype(str).str.replace(',', ''), errors='coerce').fillna(0)
-            
-            if '口座区分' not in df.columns:
-                df['口座区分'] = '不明'
-                
-            df = df[df['評価額(円)'] > 0]
-            all_data.append(df)
+        if file.name.lower().endswith('.zip'):
+            # ZIPファイルの場合の処理
+            with zipfile.ZipFile(file) as z:
+                for filename in z.namelist():
+                    # Macの隠しファイル等を除外し、CSVだけを処理
+                    if filename.lower().endswith('.csv') and '__MACOSX' not in filename:
+                        with z.open(filename) as f:
+                            file_content = f.read()
+                            df = process_csv_data(file_content)
+                            if df is not None:
+                                all_data.append(df)
+        elif file.name.lower().endswith('.csv'):
+            # 単体のCSVファイルの場合の処理
+            file_content = file.read()
+            df = process_csv_data(file_content)
+            if df is not None:
+                all_data.append(df)
 
     if all_data:
         combined_df = pd.concat(all_data, ignore_index=True)
@@ -208,7 +232,6 @@ if uploaded_files:
         with tab4:
             st.write("### 🤖 ポートフォリオ診断アドバイス")
             
-            # 分析用データ
             us_keywords = ['Ｓ＆Ｐ５００', '米国', 'S&P500']
             global_keywords = ['オール・カントリー', '全世界']
             us_amount = combined_df[combined_df['ファンド名'].str.contains('|'.join(us_keywords), na=False)]['評価額(円)'].sum()
@@ -218,7 +241,6 @@ if uploaded_files:
             with st.chat_message("assistant"):
                 st.write(f"現在の総資産 **{total_assets:,.0f}円** に基づく客観的な分析レポートです。素晴らしい資産形成のペースですが、より盤石にするためのポイントをまとめました。")
                 
-                # 1. 米国集中リスクと分散
                 st.markdown("#### 🇺🇸 資産の分散状況について")
                 if us_ratio > 60:
                     st.write(f"現在、ポートフォリオの **約{us_ratio:.0f}%** が米国株（S&P500等）で構成されています。S&P500は世界最強のインデックスの一つであり、これまでの高いリターンの原動力となっています。")
@@ -226,7 +248,6 @@ if uploaded_files:
                 else:
                     st.write("特定の国や地域に偏りすぎず、バランスの取れたアセットアロケーションが構築できています。")
 
-                # 2. 税金と口座の適切な活用
                 st.markdown("#### 🏦 特定口座の取り扱いとNISA活用")
                 if specific_amount > 0:
                     st.write(f"現在、特定口座に **約{specific_amount/10000:,.0f}万円** の資産があります。評価益がかなり大きいため、**これを無理に売却してNISAに移そうとすると、約20%の税金が引かれてしまい、複利の運用資金を減らしてしまうデメリット**があります。")
@@ -234,7 +255,6 @@ if uploaded_files:
                 else:
                     st.write("NISA枠を非常に効率的に活用できています。引き続き非課税の恩恵を最大限に活かしましょう。")
 
-                # 3. メンタルと利回り
                 st.markdown("#### 📈 将来の利回りとリスク管理")
                 st.write(f"過去の推定年利が非常に高い水準ですが、これはご自身の『暴落時にも売らずに積み立てた握力』と、近年の『歴史的な株高・円安』の相乗効果によるものです。")
                 st.write("投資の世界では、いつか必ず厳しい調整局面（下落相場）が訪れます。将来予測は保守的な**年利5%〜7%**程度で見積もっておき、資産が半減しても生活に困らないよう、現金の確保（生活防衛資金）もしっかり行っておきましょう。")
