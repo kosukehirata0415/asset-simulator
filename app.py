@@ -9,7 +9,7 @@ import io
 # ページ全体の設定
 st.set_page_config(page_title="資産推移予測シミュレーター", layout="wide")
 
-# ★デザインの調整
+# ★デザインの調整（スマホ向けのレスポンシブ対応を大幅強化）
 st.markdown("""
 <style>
     .stApp {
@@ -43,6 +43,10 @@ st.markdown("""
         width: 100% !important;
         margin-bottom: 4px !important;
     }
+    /* ★追加：金額の見切れ防止 */
+    [data-testid="stMetricValue"] * {
+        word-break: break-word !important; 
+    }
     [data-testid="stMetricDelta"] {
         font-size: 0.9rem !important;
         font-weight: 500 !important;
@@ -58,9 +62,42 @@ st.markdown("""
         border-left: 5px solid #f43f5e;
         background-color: rgba(244, 63, 94, 0.05);
     }
+    
+    /* ★強化：スマホ画面（640px以下）の時の専用スタイル */
     @media (max-width: 640px) {
         .main .block-container {
             padding: 1rem 0.5rem !important;
+        }
+        h1 {
+            font-size: 1.3rem !important; /* タイトルを少し小さく */
+        }
+        h3 {
+            font-size: 1.1rem !important; /* 見出しを小さく */
+            margin-top: 1.5rem !important;
+        }
+        .stTabs [data-baseweb="tab"] {
+            font-size: 0.75rem !important; /* タブの文字を小さくして1行に収める */
+            padding-left: 5px !important;
+            padding-right: 5px !important;
+        }
+        [data-testid="stMetric"] {
+            padding: 10px !important; /* カード内の余白を詰める */
+        }
+        [data-testid="stMetricValue"] div {
+            font-size: 1.2rem !important; /* 金額の文字サイズをスマホ最適化 */
+        }
+        [data-testid="stMetricLabel"] p {
+            font-size: 0.85rem !important;
+        }
+        [data-testid="stMetricDelta"] div {
+            font-size: 0.8rem !important;
+        }
+        .amount-preview {
+            font-size: 0.75rem;
+        }
+        /* 表（データフレーム）の文字も少し小さくして見やすく */
+        [data-testid="stDataFrame"] {
+            font-size: 0.8rem !important;
         }
     }
 </style>
@@ -68,13 +105,11 @@ st.markdown("""
 
 st.title("💹 資産推移シミュレーター")
 
-# ★CSVデータ読み込み・整形処理を共通関数化
+# CSVデータ読み込み・整形処理
 def process_csv_data(file_content):
     try:
-        # まずはShift-JISで読み込み
         df = pd.read_csv(io.BytesIO(file_content), header=1, encoding='shift_jis')
     except:
-        # エラーが出たらUTF-8でリトライ
         df = pd.read_csv(io.BytesIO(file_content), header=1, encoding='utf-8')
         
     if '評価額(円)' in df.columns and '評価損益(円)' in df.columns and 'ファンド名' in df.columns:
@@ -90,19 +125,16 @@ def process_csv_data(file_content):
         return df
     return None
 
-# ① ファイルアップロード（CSVとZIPの両方に対応）
+# ① ファイルアップロード
 uploaded_files = st.file_uploader("CSVまたはZIPファイルをアップロード（複数可）", type=["csv", "zip"], accept_multiple_files=True)
 
 if uploaded_files:
     all_data = []
     
-    # ★ZIP展開とCSV読み込みの処理
     for file in uploaded_files:
         if file.name.lower().endswith('.zip'):
-            # ZIPファイルの場合の処理
             with zipfile.ZipFile(file) as z:
                 for filename in z.namelist():
-                    # Macの隠しファイル等を除外し、CSVだけを処理
                     if filename.lower().endswith('.csv') and '__MACOSX' not in filename:
                         with z.open(filename) as f:
                             file_content = f.read()
@@ -110,7 +142,6 @@ if uploaded_files:
                             if df is not None:
                                 all_data.append(df)
         elif file.name.lower().endswith('.csv'):
-            # 単体のCSVファイルの場合の処理
             file_content = file.read()
             df = process_csv_data(file_content)
             if df is not None:
@@ -119,13 +150,11 @@ if uploaded_files:
     if all_data:
         combined_df = pd.concat(all_data, ignore_index=True)
         
-        # --- 事前計算 ---
         total_assets = combined_df['評価額(円)'].sum()
         total_profit = combined_df['評価損益(円)'].sum()
         total_principal = total_assets - total_profit
         profit_ratio = (total_profit / total_principal * 100) if total_principal > 0 else 0
 
-        # --- タブの作成 ---
         tab1, tab2, tab3, tab4 = st.tabs(["💰 現在の資産", "📑 分析・詳細", "🚀 将来予測", "🤖 AIアドバイザー"])
 
         # 【タブ1：現在の資産】
@@ -143,7 +172,7 @@ if uploaded_files:
                 marker=dict(colors=['#14b8a6', '#0ea5e9', '#6366f1', '#a855f7', '#ec4899', '#f59e0b']),
                 textinfo='percent+label', textposition='outside', insidetextorientation='horizontal' 
             )])
-            fig_pie.update_layout(margin=dict(l=50, r=50, t=30, b=80), legend=dict(orientation="h", y=-0.2, x=0.5, xanchor="center"), height=550, paper_bgcolor='rgba(0,0,0,0)')
+            fig_pie.update_layout(margin=dict(l=30, r=30, t=30, b=80), legend=dict(orientation="h", y=-0.2, x=0.5, xanchor="center"), height=550, paper_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(fig_pie, use_container_width=True)
 
         # 【タブ2：分析・詳細】
@@ -233,7 +262,6 @@ if uploaded_files:
             st.write("### 🤖 ポートフォリオ診断アドバイス")
             
             us_keywords = ['Ｓ＆Ｐ５００', '米国', 'S&P500']
-            global_keywords = ['オール・カントリー', '全世界']
             us_amount = combined_df[combined_df['ファンド名'].str.contains('|'.join(us_keywords), na=False)]['評価額(円)'].sum()
             us_ratio = (us_amount / total_assets) * 100 if total_assets > 0 else 0
             specific_amount = combined_df[~combined_df['口座区分'].str.contains('NISA|非課税', na=False)]['評価額(円)'].sum()
