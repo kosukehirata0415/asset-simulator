@@ -7,7 +7,7 @@ import datetime
 # ページ全体の設定
 st.set_page_config(page_title="資産推移予測シミュレーター", layout="wide")
 
-# ★デザインの調整（タブのデザインも含む）
+# ★CSS改修：メトリクスの値を横並びにする設定を追加
 st.markdown("""
 <style>
     .stApp {
@@ -18,13 +18,13 @@ st.markdown("""
         text-align: center;
         margin-bottom: 1.5rem !important;
     }
-    /* タブの文字サイズ調整（スマホ用） */
+    
+    /* タブのスタイル */
     .stTabs [data-baseweb="tab"] {
         font-size: 0.9rem !important;
-        padding-left: 10px !important;
-        padding-right: 10px !important;
     }
-    /* メトリクスカード */
+
+    /* メトリクスカードのデザイン */
     [data-testid="stMetric"] {
         border-radius: 12px;
         padding: 15px !important;
@@ -33,6 +33,28 @@ st.markdown("""
         border-left: 5px solid #14b8a6; 
         background-color: transparent; 
     }
+
+    /* ★重要：金額とデルタ（%と矢印）を横並びにする設定 */
+    [data-testid="stMetric"] > div {
+        display: flex !important;
+        flex-direction: row !important; /* 横並び */
+        align-items: baseline !important; /* 下揃え */
+        gap: 10px !important; /* 金額と%の間の隙間 */
+        flex-wrap: wrap !important; /* スマホで入り切らない場合は折り返し */
+    }
+
+    /* ラベル（「評価損益」など）は常に上に配置 */
+    [data-testid="stMetricLabel"] {
+        width: 100% !important;
+        margin-bottom: 4px !important;
+    }
+
+    /* デルタ（%と矢印）の文字サイズを少し小さく調整 */
+    [data-testid="stMetricDelta"] {
+        font-size: 0.9rem !important;
+        font-weight: 500 !important;
+    }
+
     .amount-preview {
         font-size: 0.85rem;
         color: #14b8a6;
@@ -40,6 +62,7 @@ st.markdown("""
         margin-top: -15px;
         margin-bottom: 10px;
     }
+
     @media (max-width: 640px) {
         .main .block-container {
             padding: 1rem 0.5rem !important;
@@ -50,7 +73,7 @@ st.markdown("""
 
 st.title("💹 資産推移シミュレーター")
 
-# ① CSVアップロード（常に最上部に表示）
+# ① CSVアップロード
 uploaded_files = st.file_uploader("CSVファイルをアップロード", type="csv", accept_multiple_files=True)
 
 if uploaded_files:
@@ -86,6 +109,7 @@ if uploaded_files:
             st.write("### 💰 資産状況")
             col1, col2, col3 = st.columns(3)
             col1.metric("総資産額", f"{int(total_assets):,} 円")
+            # ここで%を表示。CSSにより金額の右側に配置されます。
             col2.metric("評価損益", f"{int(total_profit):,} 円", f"{profit_ratio:.1f}%")
             col3.metric("投資元本", f"{int(total_principal):,} 円")
 
@@ -129,7 +153,7 @@ if uploaded_files:
 
         # 【タブ3：将来予測】
         with tab3:
-            # 利回りの再計算（タブ2の値を使用）
+            # 利回りの再計算
             today = datetime.date.today()
             invested_years = (today - start_date).days / 365.25
             past_cagr = (total_assets / total_principal) ** (1 / invested_years) - 1 if total_principal > 0 and invested_years > 0 else 0
