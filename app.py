@@ -13,6 +13,11 @@ st.markdown("""
     .stApp {
         font-family: 'Helvetica Neue', 'Hiragino Sans', 'Meiryo', sans-serif;
     }
+    h1 {
+        font-size: 1.8rem !important;
+        text-align: center;
+        margin-bottom: 2rem !important;
+    }
     h3 {
         font-size: 1.4rem !important;
         font-weight: 600;
@@ -29,9 +34,8 @@ st.markdown("""
         border-left: 5px solid #14b8a6; 
         background-color: transparent; 
     }
-    /* 入力額のプレビュー用スタイル */
     .amount-preview {
-        font-size: 0.9rem;
+        font-size: 0.85rem;
         color: #14b8a6;
         font-weight: bold;
         margin-top: -15px;
@@ -39,10 +43,10 @@ st.markdown("""
     }
     @media (max-width: 640px) {
         .main .block-container {
-            padding: 2rem 1rem !important;
+            padding: 1.5rem 0.8rem !important;
         }
         .stDataFrame {
-            font-size: 0.85rem;
+            font-size: 0.8rem;
         }
     }
 </style>
@@ -101,8 +105,6 @@ if uploaded_files:
         st.write("### 📊 過去の実績から利回りを計算")
         col_calc1, col_calc2 = st.columns(2)
         start_date = col_calc1.date_input("運用開始日", datetime.date(2021, 1, 4))
-        
-        # ★改修：初期資産額の入力とその直後のカンマ表示
         initial_asset = col_calc2.number_input("初期資産額（円）", min_value=0, value=780858, step=10000)
         col_calc2.markdown(f'<p class="amount-preview">確認：{initial_asset:,} 円</p>', unsafe_allow_html=True)
 
@@ -112,11 +114,9 @@ if uploaded_files:
 
         if invested_days > 0:
             st.write(f"🗓 運用期間: **{invested_days}日 （約 {invested_years:.2f}年）**")
-            # 利回り計算（CAGR）
             past_cagr = (total_assets / total_principal) ** (1 / invested_years) - 1 if total_principal > 0 else 0
         else:
             past_cagr = 0.0
-        
         st.info(f"💡 推定年利（CAGR）: **{past_cagr * 100:.2f} %**")
 
         # 保有ファンド一覧
@@ -129,35 +129,58 @@ if uploaded_files:
         # ③ ファンド別 積立設定
         st.write("### 💰 今後の積立設定")
         unique_funds = combined_df['ファンド名'].unique()
-        
         total_monthly_investment = 0
         with st.expander("ファンドごとに金額を入力する", expanded=True):
             for fund in unique_funds:
                 amount = st.number_input(f"{fund}", min_value=0, value=0, step=10000, key=fund)
-                # ★改修：各入力欄のすぐ下にもカンマ表示
                 st.markdown(f'<p class="amount-preview">確認：{amount:,} 円</p>', unsafe_allow_html=True)
                 total_monthly_investment += amount
-
         st.success(f"**合計積立額: {int(total_monthly_investment):,} 円 / 月**")
 
         # 将来予測
-        st.write("### 📈 20年後の資産推移")
+        st.write("### 📈 20年後の資産推移予測")
         rates = {"5%": 0.05, "7%": 0.07, "市場平均(8%)": 0.08, f"過去実績({past_cagr*100:.1f}%)": past_cagr}
         years = 20
         yearly_inv = total_monthly_investment * 12
-        results = {'年': np.arange(0, years + 1)}
+        results_years = np.arange(0, years + 1)
         
         fig = go.Figure()
         colors = ['#94a3b8', '#2dd4bf', '#0ea5e9', '#0f766e']
+        
         for i, (label, rate) in enumerate(rates.items()):
             assets = [total_assets]
             curr = total_assets
             for _ in range(years):
                 curr = curr * (1 + rate) + yearly_inv
                 assets.append(curr)
-            fig.add_trace(go.Scatter(x=results['年'], y=assets, name=label, line=dict(width=3, color=colors[i])))
+            
+            # ★修正：mode='lines+markers' を追加し、各年にプロットを表示
+            fig.add_trace(go.Scatter(
+                x=results_years, 
+                y=assets, 
+                name=label, 
+                mode='lines+markers',
+                line=dict(width=3, color=colors[i]),
+                marker=dict(size=6, symbol='circle')
+            ))
 
-        fig.update_layout(margin=dict(l=10, r=10, t=30, b=10), legend=dict(orientation="h", y=1.02, x=1, xanchor="right"), xaxis_title="年数", yaxis_title="資産額", hovermode="x unified", height=450, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
-        fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='rgba(128,128,128,0.2)')
+        fig.update_layout(
+            margin=dict(l=10, r=10, t=30, b=10),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+            xaxis_title="経過年数（年）",
+            yaxis_title="資産額（円）",
+            hovermode="x unified",
+            height=500,
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+        )
+        # ★修正：x軸の目盛りを1年刻みに設定
+        fig.update_xaxes(
+            dtick=1, 
+            showgrid=True, 
+            gridwidth=1, 
+            gridcolor='rgba(128,128,128,0.2)'
+        )
         fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='rgba(128,128,128,0.2)')
+        
         st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
