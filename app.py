@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
+import datetime
 
 # ページ全体の設定
 st.set_page_config(page_title="資産推移予測シミュレーター", layout="wide")
@@ -54,16 +55,14 @@ if uploaded_files:
         
         if '評価額(円)' in df.columns and '評価損益(円)' in df.columns and 'ファンド名' in df.columns:
             
-            # ★修正箇所：「該当データはありません」などの不要な行を除外する
+            # 不要な行を除外する
             df = df[df['ファンド名'].notna()]
             df = df[~df['ファンド名'].astype(str).str.contains('該当データはありません')]
 
             df['評価額(円)'] = pd.to_numeric(df['評価額(円)'].astype(str).str.replace(',', ''), errors='coerce').fillna(0)
             df['評価損益(円)'] = pd.to_numeric(df['評価損益(円)'].astype(str).str.replace(',', ''), errors='coerce').fillna(0)
             
-            # 評価額が0円のものもノイズになるため除外
             df = df[df['評価額(円)'] > 0]
-            
             all_data.append(df)
 
     if all_data:
@@ -102,16 +101,27 @@ if uploaded_files:
         )
         st.plotly_chart(fig_pie, use_container_width=True)
 
-        # ④ 過去の実績利回り計算
+        # ④ 過去の実績利回り計算（★日付から自動計算に改修）
         st.write("### 📊 過去の実績から利回りを計算")
-        invested_years = st.number_input("運用年数（目安）を入力", min_value=0.1, value=5.0, step=0.5)
+        
+        col_calc1, col_calc2 = st.columns(2)
+        # デフォルトを2021年1月4日に設定
+        start_date = col_calc1.date_input("運用開始日", datetime.date(2021, 1, 4))
+        initial_asset = col_calc2.number_input("初期資産額（円）", min_value=0, value=780858, step=10000)
 
-        if total_principal > 0 and invested_years > 0:
+        # 運用期間（日数および年数）の計算
+        today = datetime.date.today()
+        invested_days = (today - start_date).days
+        invested_years = invested_days / 365.25 # うるう年を考慮
+
+        if invested_days > 0:
+            st.write(f"🗓 運用期間: **{invested_days}日 （約 {invested_years:.2f}年）**")
             past_cagr = (total_assets / total_principal) ** (1 / invested_years) - 1
         else:
+            st.warning("運用開始日は過去の日付にしてください。")
             past_cagr = 0.0
         
-        st.info(f"💡 推定年利: **{past_cagr * 100:.2f} %**")
+        st.info(f"💡 推定年利（CAGR）: **{past_cagr * 100:.2f} %**")
 
         # 保有ファンド一覧
         st.write("### 💼 保有ファンド詳細")
