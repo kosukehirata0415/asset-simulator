@@ -6,67 +6,46 @@ import plotly.graph_objects as go
 # ページ全体の設定
 st.set_page_config(page_title="資産推移予測シミュレーター", layout="wide")
 
-# ★スマホ最適化＆ダークモード文字潰れ対策のCSS
+# ★洗練されたミニマル・デザインのCSS（ライト/ダーク両対応）
 st.markdown("""
 <style>
-    /* 全体の背景と基本フォント */
+    /* 全体の基本フォント */
     .stApp {
-        background-color: #F8FAFC !important;
-        font-family: 'Hiragino Sans', 'Meiryo', sans-serif;
+        font-family: 'Helvetica Neue', 'Hiragino Sans', 'Meiryo', sans-serif;
     }
     
-    /* ダークモード時でも見出しや文字が白くならないように強制 */
-    h1, h2, h3, p, label {
-        color: #1E293B !important;
-    }
-    
-    h1 {
-        font-size: 1.8rem !important;
-        text-align: center;
-        padding-bottom: 1rem;
-    }
-    
+    /* セクション見出しの洗練された装飾 */
     h3 {
-        color: #334155 !important;
-        font-size: 1.3rem !important;
-        border-left: 5px solid #3B82F6;
-        padding-left: 10px;
+        font-size: 1.4rem !important;
+        font-weight: 600;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid rgba(20, 184, 166, 0.3); /* ティールグリーンのアンダーライン */
         margin-top: 2rem !important;
+        margin-bottom: 1rem !important;
     }
 
-    /* メトリクス（数字カード）のデザインと枠のはみ出し対策 */
+    /* メトリクス（数字カード）のFintech風デザイン */
     [data-testid="stMetric"] {
-        background-color: #FFFFFF !important;
-        border-radius: 10px !important;
-        padding: 12px 10px !important; /* パディングを最適化 */
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
-        border: 1px solid #E2E8F0 !important;
-        box-sizing: border-box !important; /* 枠の崩れを防止 */
-        width: 100% !important;
-        overflow: hidden !important;
-    }
-
-    /* メトリクスのラベル（「総資産額」などの文字） */
-    [data-testid="stMetricLabel"] * {
-        color: #475569 !important; /* 濃いグレーに強制（白潰れ防止） */
-        font-size: 0.85rem !important;
-        white-space: normal !important; /* 長い場合は折り返し */
-    }
-
-    /* メトリクスの数値（金額） */
-    [data-testid="stMetricValue"] * {
-        color: #0F172A !important; /* 濃い紺色に強制 */
-        font-size: 1.25rem !important; /* スマホではみ出ないように縮小 */
-        word-break: break-word !important; /* どうしても長い場合は折り返し */
+        border-radius: 8px;
+        padding: 15px !important;
+        /* 薄いグレーの枠線と影（ダークモードでも違和感なし） */
+        border: 1px solid rgba(128, 128, 128, 0.2);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        /* 左側にティールグリーンのアクセントライン */
+        border-left: 5px solid #14b8a6; 
+        background-color: transparent; 
     }
 
     /* スマホ画面での余白調整 */
     @media (max-width: 640px) {
         .main .block-container {
-            padding: 1.5rem 0.8rem !important;
+            padding: 2rem 1rem !important;
         }
         .stDataFrame {
-            font-size: 0.8rem;
+            font-size: 0.85rem;
+        }
+        [data-testid="stMetric"] {
+            margin-bottom: 12px;
         }
     }
 </style>
@@ -75,7 +54,7 @@ st.markdown("""
 st.title("📈 資産推移シミュレーター")
 
 # ① CSVアップロード
-uploaded_files = st.file_uploader("CSVファイルをアップロード", type="csv", accept_multiple_files=True)
+uploaded_files = st.file_uploader("CSVファイルをアップロード（複数可）", type="csv", accept_multiple_files=True)
 
 if uploaded_files:
     all_data = []
@@ -150,7 +129,8 @@ if uploaded_files:
         results = {'年': np.arange(0, years + 1)}
         
         fig = go.Figure()
-        colors = ['#94A3B8', '#3B82F6', '#2563EB', '#1E40AF']
+        # グラフの色もティール系のグラデーションに変更
+        colors = ['#94a3b8', '#2dd4bf', '#0ea5e9', '#0f766e']
         
         for i, (label, rate) in enumerate(rates.items()):
             assets = [total_assets]
@@ -172,6 +152,12 @@ if uploaded_files:
             yaxis_title="資産額",
             hovermode="x unified",
             height=450,
-            template="plotly_white"
+            # 背景色を透明にしてライト/ダーク両方で美しく表示
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
         )
+        # グラフのグリッド線を薄く設定
+        fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='rgba(128,128,128,0.2)')
+        fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='rgba(128,128,128,0.2)')
+        
         st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
